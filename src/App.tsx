@@ -1,49 +1,7 @@
 import * as React from 'react'
 import ReactDOM from 'react-dom/client'
 
-import {
-  ColumnDef,
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
-
-type Person = {
-  firstName: string
-  lastName: string
-  age: number
-  visits: number
-  status: string
-  progress: number
-}
-
-const defaultData: Person[] = [
-  {
-    firstName: 'tanner',
-    lastName: 'linsley',
-    age: 24,
-    visits: 100,
-    status: 'In Relationship',
-    progress: 50,
-  },
-  {
-    firstName: 'tandy',
-    lastName: 'miller',
-    age: 40,
-    visits: 40,
-    status: 'Single',
-    progress: 80,
-  },
-  {
-    firstName: 'joe',
-    lastName: 'dirte',
-    age: 45,
-    visits: 20,
-    status: 'Complicated',
-    progress: 10,
-  },
-]
+import { MultiSelect, Option } from 'react-multi-select-component'
 
 interface Event {
   id: string;
@@ -142,45 +100,27 @@ const filterAccounts = (allAccounts: Account[], events: Event[], formulas: Map<s
 
   return result
 }
+interface Cell {
+  id: string
+  index: number
+  account: Account
+  debit: string
+  credit: string
+}
 
-const columnHelper = createColumnHelper<any>()
+interface Row {
+  id: string
+  index: number
+  event: Event
+  cells: Cell[]
+}
 
-const wrapColumns = (accounts: Account[]): any[] => (
-  [
-    columnHelper.accessor("_event", {
-      header: () => '',
-      cell: info => <div className='indent-px'>
-        <span className='text-base'>{info.getValue().name}</span>
-        <div className='text-sm'>
-          {info.getValue().schema.map(
-            ([k, v]: [string, string]) => <p>{k}: <b>{v}</b></p>
-          )}
-        </div>
-      </div>,
-    }),
-    ...accounts.map(acc =>
-      columnHelper.group({
-        header: acc.address,
-        columns: [
-          columnHelper.accessor(acc.id + "_debit", {
-            header: () => 'D',
-            cell: info => info.getValue(),
-          }),
-          columnHelper.accessor(acc.id + "_credit", {
-            header: () => 'C',
-            cell: info => info.getValue(),
-          }),
-        ]
-      })
-    )
-  ]
-)
-
-const computeGrid = (events: Event[], accounts: Account[], formulas: Map<string, Formula>): { rows: any[] } => {
-  let rows: any[] = []
+const computeGrid = (events: Event[], accounts: Account[], formulas: Map<string, Formula>): { rows: Row[] } => {
+  let rows: Row[] = []
+  let rowIdx = 0
   for (const ev of events) {
-    let row: Record<string, string | Event> = {}
-    row["_event"] = ev
+    let cells: Cell[] = []
+    let cellIdx = 0
     for (const acc of accounts) {
       const key = ev.id + acc.id
       let debit = ""
@@ -191,70 +131,83 @@ const computeGrid = (events: Event[], accounts: Account[], formulas: Map<string,
           debit = "D " + f.formula
         }
         if (f.polarity === "credit") {
-          credit = "D " + f.formula
+          credit = "C " + f.formula
         }
       }
-      row[acc.id + "_debit"] = debit
-      row[acc.id + "_credit"] = credit
+      cells.push({ id: key, index: cellIdx, account: acc, debit: debit, credit: credit })
+      cellIdx++
     }
-    rows.push(row)
+    rows.push({ id: ev.id, index: rowIdx, event: ev, cells: cells })
+    rowIdx++
   }
   return { rows: rows }
 }
 
+interface GridProps {
+  events: Event[]
+  accounts: Account[]
+
+  formulas: Map<string, Formula>
+}
+
+const Grid: React.FC<GridProps> = ({ events, accounts, formulas }) => {
+  const { rows } = computeGrid(events, accounts, formulas)
+
+  return <>
+    <table className="w-full text-sm">
+      <thead className="text-xs">
+      </thead>
+      <tbody>
+        {rows.map(row => (<>
+          <tr key={row.id} className="">
+            <td className={"py-4 px-6 dark:border-gray-700"} key={row.id + "_event"}>
+              <div className='indent-px'>
+                <span className='text-base'>{row.event.name}</span>
+                <div className='text-sm'>
+                  {row.event.schema.map(
+                    ([k, v]: [string, string]) => <p>{k}: <b>{v}</b></p>
+                  )}
+                </div>
+              </div>
+            </td>
+
+            {row.cells.map(cell => {
+              const background = cell.index % 2 == 0 ? 'bg-gray-100' : '' 
+              return (<>
+                <td key={cell.id+"_debit"} className={"py-4 px-6 dark:border-gray-700 border-r text-right " + background}>{cell.debit}</td>
+                <td key={cell.id+"_credit"} className={"py-4 px-6 dark:border-gray-700 text-left " + background}>{cell.credit}</td>
+            </>)})}
+          </tr>
+        </>))}
+      </tbody>
+    </table></>
+}
+
 function App() {
   const [allEvents] = React.useState<Event[]>(getEvents());
-  // TODO implement filtering
-  // https://tanstack.com/table/v8/docs/examples/react/column-ordering
-  const events = allEvents.filter(ev => true)
+
+  const eventOptions = allEvents.map<Option>(ev => ({
+    value: ev.id,
+    label: ev.name
+  }))
+  const [selected, setSelected] = React.useState<Option[]>(eventOptions);
+
+  const events = allEvents.filter(ev => (selected.map(i => i.value).indexOf(ev.id) >= 0))
+
   const [allAccounts] = React.useState(getAccounts())
   const [formulas] = React.useState(getFormulas());
   const formulaMap = new Map(formulas.map(f => [f.event_id + f.address_id, f]))
   const accounts = filterAccounts(allAccounts, events, formulaMap)
 
-  const { rows } = computeGrid(events, accounts, formulaMap)
-  const wc = wrapColumns(accounts)
-  // const [data, setData] = React.useState(() => [...defaultData])
-  const rerender = React.useReducer(() => ({}), {})[1]
-  const data = rows
-  const table = useReactTable({
-    data: data,
-    columns: wc,
-    getCoreRowModel: getCoreRowModel(),
-  })
-
   return (
     <div className="p-2">
-      <table className="w-full text-sm">
-        <thead className="text-xs">
-          {table.getHeaderGroups().map(headerGroup => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map(header => (
-                <th scope="col" className={"text-middle py-3 px-6 dark:border-gray-700 " + (header.id.endsWith("credit") ? 'border-l text-left' : 'text-right')}  key={header.id} colSpan={header.colSpan}>
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map(row => (
-            <tr key={row.id} className="">
-              {row.getVisibleCells().map(cell => (
-                <>
-                <td className={"py-4 px-6 dark:border-gray-700 " + (cell.id.endsWith("debit") ? 'border-r text-right' : 'text-left')} key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td></>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <Grid events={events} accounts={accounts} formulas={formulaMap}></Grid>
+      <MultiSelect
+          options={eventOptions}
+          value={selected}
+          onChange={setSelected}
+          labelledBy="Select"
+        />
     </div>
   )
 }
