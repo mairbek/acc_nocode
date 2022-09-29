@@ -1,8 +1,6 @@
 import * as React from 'react'
 import ReactDOM from 'react-dom/client'
 
-import './index.css'
-
 import {
   ColumnDef,
   createColumnHelper,
@@ -145,110 +143,20 @@ const filterAccounts = (allAccounts: Account[], events: Event[], formulas: Map<s
   return result
 }
 
-// const computeTable = (events: Event[], accounts: Account[], formulas: Map<string, Formula>): { columns: Column[], rows: Row[] } => {
-//   const padColumn: Column = { columnId: "pad1", width: 300, resizable: true }
-
-//   const cols: Column[] = [
-//     padColumn,
-//     ...accounts.flatMap(acc => [{
-//       columnId: "col_" + acc.id + "_debit",
-//       width: 180
-//     }, {
-//       columnId: "col_" + acc.id + "_credit",
-//       width: 180
-//     }
-//     ])
-//   ];
-
-//   const headerRow: Row = {
-//     rowId: 0,
-//     cells: [
-//       { type: "header", text: "" },
-//       ...accounts.flatMap<HeaderCell>(acc => [{ type: "header", text: acc.address, style: { overflow: "visible" } }, { type: "header", text: "" }])
-//     ]
-//   };
-
-//   let rows: Row[] = [headerRow]
-//   for (const ev of events) {
-//     let cells: TextCell[] = [{ type: "text", text: ev.name }]
-//     for (const acc of accounts) {
-//       const key = ev.id + acc.id
-//       let debit: TextCell = { type: "text", text: "" }
-//       let credit: TextCell = { type: "text", text: "" }
-//       const f = formulas.get(key)
-//       if (f !== undefined) {
-//         if (f.polarity === "debit") {
-//           debit = { type: "text", text: "D " + f.formula }
-//         }
-//         if (f.polarity === "credit") {
-//           credit = { type: "text", text: "C " + f.formula }
-//         }
-//       }
-//       cells.push(debit)
-//       cells.push(credit)
-//     }
-//     rows.push({ rowId: ev.id, cells: cells })
-//   }
-//   return { columns: cols, rows: rows }
-// }
-
 const columnHelper = createColumnHelper<any>()
-
-// const padColumn: Column = { columnId: "pad1", width: 300, resizable: true }
-
-//   const cols: Column[] = [
-//     padColumn,
-//     ...accounts.flatMap(acc => [{
-//       columnId: "col_" + acc.id + "_debit",
-//       width: 180
-//     }, {
-//       columnId: "col_" + acc.id + "_credit",
-//       width: 180
-//     }
-//     ])
-//   ];
-
-
-const columns = [
-  columnHelper.accessor(row => row["lastName"], {
-    id: 'lastName',
-    cell: info => info.getValue(),
-    header: () => <span>Last Name</span>,
-  }),
-  // columnHelper.group({
-  //     header: 'Info',
-  //     footer: props => props.column.id,
-  //     columns: [
-  //       columnHelper.accessor('age', {
-  //         header: () => 'Age',
-  //         footer: props => props.column.id,
-  //       }),
-  //       columnHelper.group({
-  //         header: 'More Info',
-  //         columns: [
-  //           columnHelper.accessor('visits', {
-  //             header: () => <span>Visits</span>,
-  //             footer: props => props.column.id,
-  //           }),
-  //           columnHelper.accessor('status', {
-  //             header: 'Status',
-  //             footer: props => props.column.id,
-  //           }),
-  //           columnHelper.accessor('progress', {
-  //             header: 'Profile Progress',
-  //             footer: props => props.column.id,
-  //           }),
-  //         ],
-  //       }),
-  //     ],
-  //   }),
-]
 
 const wrapColumns = (accounts: Account[]): any[] => (
   [
     columnHelper.accessor("_event", {
       header: () => '',
-      cell: info => info.getValue(),
+      cell: info => <div className='indent-px'>
+        <span className='text-base'>{info.getValue().name}</span>
+        <div className='text-sm'>
+          {info.getValue().schema.map(
+            ([k, v] : [string, string]) => <p>{k}: <b>{v}</b></p>
+          )}
+        </div>
+      </div>,
     }),
     ...accounts.map(acc => 
       columnHelper.group({
@@ -271,8 +179,8 @@ const wrapColumns = (accounts: Account[]): any[] => (
 const computeGrid = (events: Event[], accounts: Account[], formulas: Map<string, Formula>): { rows: any[] } => {
   let rows: any[] = []
   for (const ev of events) {
-    let row: Record<string, string> = {}
-    row["_event"] = ev.name
+    let row: Record<string, string | Event> = {}
+    row["_event"] = ev
     for (const acc of accounts) {
       const key = ev.id + acc.id
       let debit = ""
@@ -316,12 +224,12 @@ function App() {
 
   return (
     <div className="p-2">
-      <table>
+      <table className="table-auto border-collapse border border-slate-400 text-sm">
         <thead>
           {table.getHeaderGroups().map(headerGroup => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map(header => (
-                <th key={header.id} colSpan={header.colSpan}>
+                <th className='border border-slate-300 text-xs' key={header.id} colSpan={header.colSpan}>
                   {header.isPlaceholder
                     ? null
                     : flexRender(
@@ -337,7 +245,7 @@ function App() {
           {table.getRowModel().rows.map(row => (
             <tr key={row.id}>
               {row.getVisibleCells().map(cell => (
-                <td key={cell.id}>
+                <td className='border border-slate-300 text-right' key={cell.id}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>
               ))}
