@@ -128,10 +128,10 @@ const computeGrid = (events: Event[], accounts: Account[], formulas: Map<string,
       const f = formulas.get(key)
       if (f !== undefined) {
         if (f.polarity === "debit") {
-          debit = "D " + f.formula
+          debit = f.formula
         }
         if (f.polarity === "credit") {
-          credit = "C " + f.formula
+          credit = f.formula
         }
       }
       cells.push({ id: key, index: cellIdx, account: acc, debit: debit, credit: credit })
@@ -156,6 +156,23 @@ const Grid: React.FC<GridProps> = ({ events, accounts, formulas }) => {
   return <>
     <table className="w-full text-sm">
       <thead className="text-xs">
+      <tr>
+          <th></th>
+          {accounts.map(acc => {
+            return <>
+              <th className='text-middle' colSpan={2}>{acc.address}</th>
+            </>
+          })}
+        </tr>
+        <tr>
+          <th></th>
+          {accounts.map(acc => {
+            return <>
+              <th className='text-middle'>D</th>
+              <th className='text-middle'>C</th>
+            </>
+          })}
+        </tr>
       </thead>
       <tbody>
         {rows.map(row => (<>
@@ -172,7 +189,7 @@ const Grid: React.FC<GridProps> = ({ events, accounts, formulas }) => {
             </td>
 
             {row.cells.map(cell => {
-              const background = cell.index % 2 == 0 ? 'bg-gray-100' : '' 
+              const background = cell.index % 2 === 0 ? 'bg-gray-100' : '' 
               return (<>
                 <td key={cell.id+"_debit"} className={"py-4 px-6 dark:border-gray-700 border-r text-right " + background}>{cell.debit}</td>
                 <td key={cell.id+"_credit"} className={"py-4 px-6 dark:border-gray-700 text-left " + background}>{cell.credit}</td>
