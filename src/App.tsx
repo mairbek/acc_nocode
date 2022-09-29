@@ -153,12 +153,12 @@ const wrapColumns = (accounts: Account[]): any[] => (
         <span className='text-base'>{info.getValue().name}</span>
         <div className='text-sm'>
           {info.getValue().schema.map(
-            ([k, v] : [string, string]) => <p>{k}: <b>{v}</b></p>
+            ([k, v]: [string, string]) => <p>{k}: <b>{v}</b></p>
           )}
         </div>
       </div>,
     }),
-    ...accounts.map(acc => 
+    ...accounts.map(acc =>
       columnHelper.group({
         header: acc.address,
         columns: [
@@ -170,8 +170,8 @@ const wrapColumns = (accounts: Account[]): any[] => (
             header: () => 'C',
             cell: info => info.getValue(),
           }),
-          ]
-        })
+        ]
+      })
     )
   ]
 )
@@ -205,6 +205,7 @@ const computeGrid = (events: Event[], accounts: Account[], formulas: Map<string,
 function App() {
   const [allEvents] = React.useState<Event[]>(getEvents());
   // TODO implement filtering
+  // https://tanstack.com/table/v8/docs/examples/react/column-ordering
   const events = allEvents.filter(ev => true)
   const [allAccounts] = React.useState(getAccounts())
   const [formulas] = React.useState(getFormulas());
@@ -224,12 +225,12 @@ function App() {
 
   return (
     <div className="p-2">
-      <table className="table-auto border-collapse border border-slate-400 text-sm">
-        <thead>
+      <table className="w-full text-sm">
+        <thead className="text-xs">
           {table.getHeaderGroups().map(headerGroup => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map(header => (
-                <th className='border border-slate-300 text-xs' key={header.id} colSpan={header.colSpan}>
+                <th scope="col" className={"text-middle py-3 px-6 dark:border-gray-700 " + (header.id.endsWith("credit") ? 'border-l text-left' : 'text-right')}  key={header.id} colSpan={header.colSpan}>
                   {header.isPlaceholder
                     ? null
                     : flexRender(
@@ -243,20 +244,17 @@ function App() {
         </thead>
         <tbody>
           {table.getRowModel().rows.map(row => (
-            <tr key={row.id}>
+            <tr key={row.id} className="">
               {row.getVisibleCells().map(cell => (
-                <td className='border border-slate-300 text-right' key={cell.id}>
+                <>
+                <td className={"py-4 px-6 dark:border-gray-700 " + (cell.id.endsWith("debit") ? 'border-r text-right' : 'text-left')} key={cell.id}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
+                </td></>
               ))}
             </tr>
           ))}
         </tbody>
       </table>
-      <div className="h-4" />
-      <button onClick={() => rerender()} className="border p-2">
-        Rerender
-      </button>
     </div>
   )
 }
